@@ -1,0 +1,41 @@
+services:
+  db-c2:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_PASSWORD=pass_c2
+      - POSTGRES_DB=dolibarr
+      - POSTGRES_USER=dolibarr
+    volumes:
+      - ./db_data:/var/lib/postgresql/data
+    networks:
+      - internal-c2
+
+  app-c2:
+    build: 
+        context: ..              # Il remonte d'un niveau pour trouver le Dockerfile
+        dockerfile: Dockerfile   # Le nom du fichier
+    container_name: app-c2
+    depends_on:
+      - db-c2
+    environment:
+      - DOLI_DB_TYPE=pgsql
+      - DOLI_DB_HOST=db-c2
+      - DOLI_DB_PORT=5432
+      - DOLI_DB_NAME=dolibarr
+      - DOLI_DB_USER=dolibarr
+      - DOLI_DB_PASSWORD=pass_c2
+    networks:
+      - proxy-net
+      - internal-c2
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.c2.rule=Host(`client2.localhost`)"
+      - "traefik.http.routers.c2.entrypoints=web"
+      - "traefik.http.services.c2.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy-net"
+
+networks:
+  proxy-net:
+    external: true
+  internal-c2:
+    driver : bridge

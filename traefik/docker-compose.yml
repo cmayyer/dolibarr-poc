@@ -1,0 +1,25 @@
+services:
+  traefik:
+    image: traefik:v3.6.2 # La version 3.x la plus stable actuellement
+    container_name: traefik
+    command:
+      # Active le tableau de bord (Dashboard)
+      - "--api.insecure=true"
+      # Définit Docker comme source de configuration
+      - "--providers.docker=true"
+      # Ne pas exposer les conteneurs par défaut (sécurité)
+      - "--providers.docker.exposedbydefault=false"
+      # Point d'entrée pour le trafic HTTP
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "80:80"       # Trafic web
+      - "8080:8080"   # Dashboard
+    volumes:
+      # Montage standard du socket Docker
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - proxy-net
+
+networks:
+  proxy-net:
+    external: true

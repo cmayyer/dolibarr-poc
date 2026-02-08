@@ -1,0 +1,30 @@
+# --- DOCKER & SYSTÈME ---
+# On ne veut jamais sauvegarder les données brutes de la base de données
+# (Elles sont sur votre Mac, pas dans le code de l'image)
+db_data/
+db_data_c1/
+db_data_c2/
+db_data*/
+
+# On ignore les fichiers de configuration Docker locaux ou secrets
+**/*.env
+*.env
+docker-compose.override.yml
+
+# --- DOLIBARR ---
+# Si vous montez les documents (factures générées, photos), ne les mettez pas sur Git
+documents/
+custom/temp/
+
+# Ne pas commiter les données clients
+clients/**/db_data/
+clients/**/documents/
+
+# Ne pas commiter les certificats SSL futurs
+traefik/acme.json
+
+# --- MAC & ÉDITEURS ---
+.DS_Store
+.idea/
+.vscode/
+*.swp
