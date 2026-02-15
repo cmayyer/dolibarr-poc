@@ -1,41 +1,58 @@
 services:
-  db-c2:
-    image: postgres:15-alpine
+  # --- Service Base de Données ---
+  db:
+    image: postgres:16-alpine
+    container_name: ${DB_HOST}
+    restart: unless-stopped
     environment:
-      - POSTGRES_PASSWORD=pass_c2
-      - POSTGRES_DB=dolibarr
-      - POSTGRES_USER=dolibarr
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_DB=${DB_NAME}
     volumes:
+      # Persistance des données
       - ./db_data:/var/lib/postgresql/data
+      # Import automatique du template SQL au premier démarrage uniquement
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql 
     networks:
-      - internal-c2
+      - internal
 
-  app-c2:
-    build: 
-        context: ..              # Il remonte d'un niveau pour trouver le Dockerfile
-        dockerfile: Dockerfile   # Le nom du fichier
-    container_name: app-c2
+  # --- Service Application Dolibarr ---
+  app:
+    image: my-dolibarr-master:v1
+    container_name: app-${CLIENT_ID}
+    restart: unless-stopped
     depends_on:
-      - db-c2
+      - db
     environment:
-      - DOLI_DB_TYPE=pgsql
-      - DOLI_DB_HOST=db-c2
-      - DOLI_DB_PORT=5432
-      - DOLI_DB_NAME=dolibarr
-      - DOLI_DB_USER=dolibarr
-      - DOLI_DB_PASSWORD=pass_c2
+      # Passage des variables du .env vers le PHP (via getenv)
+      - CLIENT_ID=${CLIENT_ID}
+      - CLIENT_HOSTNAME=${CLIENT_HOSTNAME}
+      - DB_USER=${DB_USER}
+      - DB_PASS=${DB_PASS}
+      # Empêche l'assistant d'installation de se lancer (car base déjà prête)
+      - DOLI_INSTALL_AUTO=0 
+    volumes:
+      # Persistance des documents (PDF, Factures)
+      - ./documents:/var/www/documents
+      # Injection de la configuration dynamique
+      - ./conf/conf.php:/var/www/html/conf/conf.php
     networks:
       - proxy-net
-      - internal-c2
+      - internal
     labels:
+      # Configuration pour Traefik (Reverse Proxy)
       - "traefik.enable=true"
-      - "traefik.http.routers.c2.rule=Host(`client2.localhost`)"
-      - "traefik.http.routers.c2.entrypoints=web"
-      - "traefik.http.services.c2.loadbalancer.server.port=80"
+      - "traefik.http.routers.${CLIENT_ID}.rule=Host(`${CLIENT_HOSTNAME}`)" 
+      - "traefik.http.routers.${CLIENT_ID}.entrypoints=web"
+      - "traefik.http.services.${CLIENT_ID}.loadbalancer.server.port=80"
       - "traefik.docker.network=proxy-net"
 
 networks:
+  # Réseau interne isolé (la BDD n'est pas exposée au web)
+  internal:
+    # 'name' définit le nom réel que Docker donnera au réseau
+    name: internal-${CLIENT_ID}
+    driver: bridge
+  # Réseau externe pour le Reverse Proxy
   proxy-net:
     external: true
-  internal-c2:
-    driver : bridge
